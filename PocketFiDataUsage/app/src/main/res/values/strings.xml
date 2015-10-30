@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">PocketFiDataUsage</string>
+
+    <string name="user_name">User Name</string>
+    <string name="password">Password</string>
+    <string name="saving_password">패스워드 저장</string>
+</resources>
