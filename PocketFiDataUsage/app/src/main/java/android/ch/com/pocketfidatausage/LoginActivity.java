@@ -101,47 +101,9 @@ public class LoginActivity extends AppCompatActivity {
 
     private void sendRequest(String username, String password) {
         boolean succeed=false;
-        //
-        URL url = null;
-        HttpURLConnection conn = null;
-        StringBuilder output = new StringBuilder();
-    //    String serverUrl = "http://192.168.1.1/0_login.html";
-        String serverUrl = "http://m.naver.com";
-        try {
-            url = new URL(serverUrl);
-            conn = (HttpURLConnection)url.openConnection();
 
-            if(conn != null) {
-
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(3000);
-                conn.setRequestMethod("GET");
-                conn.setDoInput(true);
-                conn.setDoOutput(true);
-
-                int resCode = conn.getResponseCode();
-
-                if(resCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(conn.getInputStream()));
-                    String line = null;
-                    while (true) {
-                        line = reader.readLine();
-                        if (line == null) {
-                            break;
-                        }
-                        output.append(line + "\n");
-                    }
-                    reader.close();
-                    conn.disconnect();
-                }
-            }
-
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        NetworkThread nt = new NetworkThread(username, password);
+        nt.start();
 
         if(succeed) {
             startActivity(new Intent(this, MainActivity.class));
@@ -150,5 +112,52 @@ public class LoginActivity extends AppCompatActivity {
 
         else
              Toast.makeText(this, "로그인 실패", Toast.LENGTH_LONG).show();
+    }
+
+    class NetworkThread extends Thread {
+        public String mThreadUsername = null;
+        public String mThreadPassword = null;
+        public NetworkThread(String username, String password) {
+            mThreadUsername = username;
+            mThreadPassword = password;
+        }
+        public void run() {
+            URL url = null;
+            HttpURLConnection conn = null;
+            StringBuilder output = new StringBuilder();
+            //    String serverUrl = "http://192.168.1.1/0_login.html";
+            String serverUrl = "http://m.naver.com";
+            try {
+                url = new URL(serverUrl);
+                conn = (HttpURLConnection)url.openConnection();
+                if(conn != null) {
+                    conn.setConnectTimeout(10000);
+                    conn.setRequestMethod("GET");
+                    conn.setDoInput(true);
+                    conn.setDoOutput(true);
+
+                    int resCode = conn.getResponseCode();
+
+                    if(resCode == HttpURLConnection.HTTP_OK) {
+                        BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(conn.getInputStream()));
+                        String line = null;
+                        while (true) {
+                            line = reader.readLine();
+                            if (line == null) {
+                                break;
+                            }
+                            output.append(line + "\n");
+                        }
+                        reader.close();
+                        conn.disconnect();
+                    }
+                }
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
