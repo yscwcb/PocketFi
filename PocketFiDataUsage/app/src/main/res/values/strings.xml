@@ -4,4 +4,7 @@
     <string name="user_name">User Name</string>
     <string name="password">Password</string>
     <string name="saving_password">패스워드 저장</string>
+    <string name="tx_total">총송신량</string>
+    <string name="rx_total">총수신량</string>
+    <string name="total_data">총 사용량</string>
 </resources>

@@ -66,6 +66,7 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
+    // 패스워드 저장 확인
     public void savePreferences(String password) {
         CheckBox saveCheck=(CheckBox)findViewById(R.id.checkbox);
         SharedPreferences.Editor editor = null;
@@ -88,6 +89,9 @@ public class LoginActivity extends AppCompatActivity {
                 String userPassword = null;
                 userName = mUserNameEdit.getText().toString();
                 userPassword = mPasswordEdit.getText().toString();
+                if(saveCheck.isChecked()) {
+                    savePreferences(userPassword);
+                }
                 sendRequest(userName, userPassword);
                 break;
             }
@@ -105,6 +109,14 @@ public class LoginActivity extends AppCompatActivity {
         NetworkThread nt = new NetworkThread(username, password);
         nt.start();
 
+        try {
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if(nt.flagChange())
+            succeed = true;
+
         if(succeed) {
             startActivity(new Intent(this, MainActivity.class));
             finish();
@@ -117,6 +129,8 @@ public class LoginActivity extends AppCompatActivity {
     class NetworkThread extends Thread {
         public String mThreadUsername = null;
         public String mThreadPassword = null;
+        protected boolean mFlag = false;
+
         public NetworkThread(String username, String password) {
             mThreadUsername = username;
             mThreadPassword = password;
@@ -125,17 +139,16 @@ public class LoginActivity extends AppCompatActivity {
             URL url = null;
             HttpURLConnection conn = null;
             StringBuilder output = new StringBuilder();
-            //    String serverUrl = "http://192.168.1.1/0_login.html";
-            String serverUrl = "http://m.naver.com";
+            String serverUrl = "http://192.168.1.1/cgi-bin/webctl.cgi";
+
             try {
                 url = new URL(serverUrl);
                 conn = (HttpURLConnection)url.openConnection();
                 if(conn != null) {
                     conn.setConnectTimeout(10000);
-                    conn.setRequestMethod("GET");
+                    conn.setRequestMethod("POST");
                     conn.setDoInput(true);
                     conn.setDoOutput(true);
-
                     int resCode = conn.getResponseCode();
 
                     if(resCode == HttpURLConnection.HTTP_OK) {
@@ -149,15 +162,21 @@ public class LoginActivity extends AppCompatActivity {
                             }
                             output.append(line + "\n");
                         }
+                        mFlag = true;
                         reader.close();
                         conn.disconnect();
                     }
                 }
+
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        public boolean flagChange() {
+            return mFlag;
         }
     }
 }
