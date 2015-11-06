@@ -3,10 +3,13 @@ package android.ch.com.pocketfidatausage;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Network;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
 import android.text.method.PasswordTransformationMethod;
+import android.util.Base64;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -18,6 +21,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
@@ -27,11 +31,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.CookieManager;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.util.Objects;
+
+import static android.ch.com.pocketfidatausage.NetworkConnection.*;
 
 /**
  * Created by Changhan on 2015-10-30.
@@ -71,13 +81,16 @@ public class LoginActivity extends AppCompatActivity {
         CheckBox saveCheck=(CheckBox)findViewById(R.id.checkbox);
         SharedPreferences.Editor editor = null;
         if(saveCheck.isChecked()) {
-            Log.e(tag, "saving password");
             setting = getSharedPreferences("setting", 0);
             editor = setting.edit();
             editor.putString("password", password);
             editor.putBoolean("checkbox", saveCheck.isChecked());
             editor.apply();
         } else {
+            setting = getSharedPreferences("setting", 0);
+            editor = setting.edit();
+            editor.clear();
+            editor.apply();
             Log.e(tag, "deleting password");
         }
     }
@@ -85,99 +98,66 @@ public class LoginActivity extends AppCompatActivity {
     public void onClick(View v) {
         switch(v.getId()) {
             case R.id.login_btn: {
-                String userName = null;
-                String userPassword = null;
-                userName = mUserNameEdit.getText().toString();
-                userPassword = mPasswordEdit.getText().toString();
+                String username = null;
+                String password = null;
+                username = mUserNameEdit.getText().toString();
+                password = mPasswordEdit.getText().toString();
                 if(saveCheck.isChecked()) {
-                    savePreferences(userPassword);
+                    savePreferences(password);
                 }
-                sendRequest(userName, userPassword);
+                String usernameBase64 = getBase64endcode(username);
+                String passwordBase64 = getBase64endcode(password);
+                NetworkThread nt = new NetworkThread();
+                nt.execute(usernameBase64, passwordBase64);
                 break;
             }
+            /*
             case R.id.checkbox: {
                 String userPassword = null;
                 userPassword = mPasswordEdit.getText().toString();
                 savePreferences(userPassword);
             }
+            */
         }
     }
 
-    private void sendRequest(String username, String password) {
-        boolean succeed=false;
-
-        NetworkThread nt = new NetworkThread(username, password);
-        nt.start();
-
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        if(nt.flagChange())
-            succeed = true;
-
-        if(succeed) {
-            startActivity(new Intent(this, MainActivity.class));
-            finish();
-        }
-
-        else
-             Toast.makeText(this, "로그인 실패", Toast.LENGTH_LONG).show();
+    public String getBase64endcode(String content) {
+        return Base64.encodeToString(content.getBytes(), 0);
     }
 
-    class NetworkThread extends Thread {
-        public String mThreadUsername = null;
-        public String mThreadPassword = null;
-        protected boolean mFlag = false;
+    public class NetworkThread extends AsyncTask<String, Void, JSONObject> {
+        @Override
+        protected JSONObject doInBackground(String... args) {
+            NetworkConnection networkConnection = NetworkConnection.getInstance();
+            networkConnection.setData(args[0], args[1]);
 
-        public NetworkThread(String username, String password) {
-            mThreadUsername = username;
-            mThreadPassword = password;
+            return networkConnection.loginAuth();
         }
-        public void run() {
-            URL url = null;
-            HttpURLConnection conn = null;
-            StringBuilder output = new StringBuilder();
-            String serverUrl = "http://192.168.1.1/cgi-bin/webctl.cgi";
 
-            try {
-                url = new URL(serverUrl);
-                conn = (HttpURLConnection)url.openConnection();
-                if(conn != null) {
-                    conn.setConnectTimeout(10000);
-                    conn.setRequestMethod("POST");
-                    conn.setDoInput(true);
-                    conn.setDoOutput(true);
-                    int resCode = conn.getResponseCode();
-
-                    if(resCode == HttpURLConnection.HTTP_OK) {
-                        BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(conn.getInputStream()));
-                        String line = null;
-                        while (true) {
-                            line = reader.readLine();
-                            if (line == null) {
-                                break;
-                            }
-                            output.append(line + "\n");
+        protected void onPostExecute(JSONObject jsonObject) {
+            if(jsonObject != null) {
+                try {
+                    if (jsonObject.getString("RESULT").equals("SUCCESS")) {
+                        startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                        finish();
+                    } else {
+                        CheckBox saveCheck=(CheckBox)findViewById(R.id.checkbox);
+                        if(saveCheck.isChecked()) {
+                            SharedPreferences.Editor editor = null;
+                            setting = getSharedPreferences("setting", 0);
+                            editor = setting.edit();
+                            editor.clear();
+                            editor.apply();
+                            saveCheck.setChecked(false);
                         }
-                        mFlag = true;
-                        reader.close();
-                        conn.disconnect();
+                        Toast.makeText(LoginActivity.this, "로그인 실패", Toast.LENGTH_LONG).show();
                     }
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
-
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
-        }
-
-        public boolean flagChange() {
-            return mFlag;
+            else
+                Toast.makeText(LoginActivity.this, "포켓파이에 접속하지 않았습니다", Toast.LENGTH_LONG).show();
         }
     }
 }
